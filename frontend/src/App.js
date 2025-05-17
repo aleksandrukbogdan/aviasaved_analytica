@@ -48,6 +48,7 @@ import {
 import 'chartjs-adapter-date-fns';
 import { Bar, Pie, Scatter, Line } from 'react-chartjs-2';
 import axios from 'axios';
+import tickets from './components/tickets.json';
 
 // Регистрируем все необходимые компоненты Chart.js
 ChartJS.register(
@@ -185,6 +186,11 @@ const theme = createTheme({
     },
   },
 });
+
+// Добавляем функцию форматирования чисел
+const formatNumber = (number) => {
+  return new Intl.NumberFormat('ru-RU').format(Math.round(number));
+};
 
 function Header({ selectedDepartment, onDepartmentChange, departmentList }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -662,6 +668,107 @@ function App() {
     };
   };
 
+  // Функция для создания данных графика расходов по сотрудникам
+  const getEmployeeBarData = () => {
+    const employees = Object.entries(data.employeeTotals)
+      .sort((a, b) => b[1].rating - a[1].rating)
+      .slice(0, 10); // Берем топ-10 сотрудников
+
+    return {
+      labels: employees.map(([employee]) => employee),
+      datasets: [
+        {
+          label: 'Фактические расходы',
+          data: employees.map(([, data]) => data.spent),
+          backgroundColor: 'rgba(255, 99, 132, 0.6)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          borderWidth: 1
+        },
+        {
+          label: 'Оптимальные расходы',
+          data: employees.map(([, data]) => data.saved),
+          backgroundColor: 'rgba(75, 192, 192, 0.6)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        }
+      ]
+    };
+  };
+
+  const barOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      title: {
+        display: true,
+        text: (context) => {
+          const department = context.chart.data.datasets[0].department || 'all';
+          return `Сравнение фактических и оптимальных расходов ${department === 'all' ? '(Все департаменты)' : `(Департамент: ${department})`}`;
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return `${context.dataset.label}: ${formatNumber(context.raw)} руб.`;
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: 'Сумма (руб.)'
+        },
+        ticks: {
+          callback: function(value) {
+            return formatNumber(value);
+          }
+        }
+      }
+    }
+  };
+
+  // Опции для графика расходов по сотрудникам
+  const employeeBarOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      title: {
+        display: true,
+        text: 'Топ-10 сотрудников по расходам'
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return `${context.dataset.label}: ${formatNumber(context.raw)} руб.`;
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: 'Сумма (руб.)'
+        },
+        ticks: {
+          callback: function(value) {
+            return formatNumber(value);
+          }
+        }
+      },
+      x: {
+        ticks: {
+          maxRotation: 45,
+          minRotation: 45
+        }
+      }
+    }
+  };
+
   const getSavingsLineData = (department) => {
     const processData = (dataArray) => {
       const groupedByDate = dataArray.reduce((acc, point) => {
@@ -736,8 +843,8 @@ function App() {
             const point = context.raw;
             return [
               `Маршрут: ${point.routes.join(', ')}`,
-              `Стоимость: ${point.y.toFixed(2)} руб.`,
-              `Экономия: ${point.savings.toFixed(2)} руб.`
+              `Стоимость: ${formatNumber(point.y)} руб.`,
+              `Экономия: ${formatNumber(point.savings)} руб.`
             ];
           }
         }
@@ -771,6 +878,11 @@ function App() {
         grid: {
           display: true,
           color: 'rgba(0, 0, 0, 0.1)'
+        },
+        ticks: {
+          callback: function(value) {
+            return formatNumber(value);
+          }
         }
       }
     },
@@ -787,6 +899,33 @@ function App() {
         tension: 0
       }
     }
+  };
+
+  // Функция для создания данных графика процента экономии
+  const getSavingsPercentageData = (department) => {
+    const departmentData = department === 'all' 
+      ? Object.values(data.departments).flat()
+      : data.departments[department];
+
+    const totalSpent = departmentData.reduce((sum, item) => sum + item.actual_price, 0);
+    const totalSaved = departmentData.reduce((sum, item) => sum + (item.actual_price - item.optimal_price), 0);
+
+    return {
+      labels: ['Экономия', 'Затраты'],
+      datasets: [{
+        data: [totalSaved, totalSpent],
+        backgroundColor: [
+          'rgba(75, 192, 192, 0.8)',
+          'rgba(255, 99, 132, 0.8)'
+        ],
+        borderColor: [
+          'rgba(75, 192, 192, 1)',
+          'rgba(255, 99, 132, 1)'
+        ],
+        borderWidth: 1,
+        department: department
+      }]
+    };
   };
 
   const pieOptions = {
@@ -806,38 +945,8 @@ function App() {
             const value = context.raw;
             const total = context.dataset.data.reduce((a, b) => a + b, 0);
             const percentage = ((value / total) * 100).toFixed(1);
-            return `${context.label}: ${value.toFixed(2)} руб. (${percentage}%)`;
+            return `${context.label}: ${formatNumber(value)} руб. (${percentage}%)`;
           }
-        }
-      }
-    }
-  };
-
-  const barOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      title: {
-        display: true,
-        text: (context) => {
-          const department = context.chart.data.datasets[0].department || 'all';
-          return `Сравнение фактических и оптимальных расходов ${department === 'all' ? '(Все департаменты)' : `(Департамент: ${department})`}`;
-        }
-      },
-      tooltip: {
-        callbacks: {
-          label: function(context) {
-            return `${context.dataset.label}: ${context.raw.toFixed(2)} руб.`;
-          }
-        }
-      }
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: 'Сумма (руб.)'
         }
       }
     }
@@ -859,7 +968,7 @@ function App() {
           label: function(context) {
             const point = context.raw;
             return [
-              `Экономия: ${point.y.toFixed(2)} руб.`,
+              `Экономия: ${formatNumber(point.y)} руб.`,
               `Маршруты: ${point.routes.join(', ')}`
             ];
           }
@@ -885,13 +994,19 @@ function App() {
           display: true,
           text: 'Экономия (руб.)'
         },
-        beginAtZero: true
+        beginAtZero: true,
+        ticks: {
+          callback: function(value) {
+            return formatNumber(value);
+          }
+        }
       }
     }
   };
 
   // Функция для расчета рейтинга департамента
   const calculateDepartmentRating = (dept, totals) => {
+    console.log(`Расчет рейтинга для департамента ${dept}:`, totals);
     // Нормализуем показатели от 0 до 1
     const maxSpent = Math.max(...Object.values(data.departmentTotals).map(d => d.spent));
     const maxSaved = Math.max(...Object.values(data.departmentTotals).map(d => d.saved));
@@ -927,6 +1042,19 @@ function App() {
         normalizedSavings: (normalizedSavings * 100).toFixed(1),
         efficiency: (efficiency * 100).toFixed(1)
       }
+    };
+  };
+
+  // Функция для проверки и форматирования данных департамента
+  const formatDepartmentData = (dept, totals) => {
+    console.log(`Форматирование данных для департамента ${dept}:`, totals);
+    const { rating, details } = calculateDepartmentRating(dept, totals);
+    return {
+      dept,
+      rating,
+      details,
+      totals,
+      flightsCount: totals.flights_count || 0
     };
   };
 
@@ -981,34 +1109,6 @@ function App() {
     
 
     return recommendations;
-  };
-
-  // Функция для создания данных графика процента экономии
-  const getSavingsPercentageData = (department) => {
-    const departmentData = department === 'all' 
-      ? Object.values(data.departments).flat()
-      : data.departments[department];
-
-    const totalSpent = departmentData.reduce((sum, item) => sum + item.actual_price, 0);
-    const totalSaved = departmentData.reduce((sum, item) => sum + (item.actual_price - item.optimal_price), 0);
-    const savingsPercentage = (totalSaved / totalSpent) * 100;
-
-    return {
-      labels: ['Экономия', 'Затраты'],
-      datasets: [{
-        data: [savingsPercentage, 100 - savingsPercentage],
-        backgroundColor: [
-          'rgba(75, 192, 192, 0.8)',
-          'rgba(255, 99, 132, 0.8)'
-        ],
-        borderColor: [
-          'rgba(75, 192, 192, 1)',
-          'rgba(255, 99, 132, 1)'
-        ],
-        borderWidth: 1,
-        department: department
-      }]
-    };
   };
 
   // Функция для создания данных графика средней стоимости
@@ -1211,7 +1311,7 @@ function App() {
                         flexDirection: 'column',
                         gap: 2, 
                         overflowY: 'auto',
-                        maxHeight: '600px',
+                        maxHeight: '750px',
                         pr: 2,
                         '&::-webkit-scrollbar': {
                           width: '8px',
@@ -1229,18 +1329,10 @@ function App() {
                         },
                       }}>
                         {Object.entries(data.departmentTotals)
-                          .map(([dept, totals]) => {
-                            const { rating, details } = calculateDepartmentRating(dept, totals);
-                            return {
-                              dept,
-                              rating,
-                              details,
-                              totals
-                            };
-                          })
+                          .map(([dept, totals]) => formatDepartmentData(dept, totals))
                           .sort((a, b) => b.rating - a.rating)
                           .slice(0, showFullRating ? undefined : 10)
-                          .map(({ dept, rating, details, totals }, index) => (
+                          .map(({ dept, rating, details, totals, flightsCount }, index) => (
                             <Paper 
                               key={dept}
                               elevation={2} 
@@ -1253,10 +1345,7 @@ function App() {
                                            rating >= 40 ? 'warning.main' : 
                                            'error.main',
                                 position: 'relative',
-                                transition: 'transform 0.2s',
-                                '&:hover': {
-                                  transform: 'scale(1.02)',
-                                }
+                                transition: 'transform 0.2s'
                               }}
                             >
                               <Typography 
@@ -1300,6 +1389,15 @@ function App() {
                               <Typography variant="body2" component="p" color="text.secondary">
                                 Экономия: {details.savingsPercentage}%
                               </Typography>
+                              <Typography variant="body2" component="p" color="text.secondary">
+                                Количество полетов: {totals.flights_count || 0}
+                              </Typography>
+                              <Typography variant="body2" component="p" color="text.secondary">
+                                Потрачено: {formatNumber(totals.spent)} ₽
+                              </Typography>
+                              <Typography variant="body2" component="p" color="text.secondary">
+                                Сэкономлено: {formatNumber(totals.saved)} ₽
+                              </Typography>
                             </Paper>
                           ))}
                       </Box>
@@ -1341,6 +1439,128 @@ function App() {
                     </Paper>
                   </Grid>
                 </Grid>
+              </Grid>
+
+              {/* Рейтинг сотрудников */}
+              <Grid item xs={12} id="employee-rating">
+                <Paper sx={cardStyle}>
+                  <Typography variant="h5" component="h2" sx={titleStyle} align="center">
+                    Рейтинг сотрудников по эффективности
+                  </Typography>
+                  <Typography variant="subtitle1" component="p" color="text.secondary" align="center" sx={{ mb: 3 }}>
+                    Показываются только сотрудники из департаментов с более чем 10 полетами
+                  </Typography>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        gap: 2, 
+                        overflowY: 'auto',
+                        maxHeight: '600px',
+                        pr: 2,
+                        '&::-webkit-scrollbar': {
+                          width: '8px',
+                        },
+                        '&::-webkit-scrollbar-track': {
+                          backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                          borderRadius: '4px',
+                        },
+                        '&::-webkit-scrollbar-thumb': {
+                          backgroundColor: alpha(theme.palette.primary.main, 0.3),
+                          borderRadius: '4px',
+                          '&:hover': {
+                            backgroundColor: alpha(theme.palette.primary.main, 0.5),
+                          },
+                        },
+                      }}>
+                        {Object.entries(data.employeeTotals)
+                          .map(([employee, data]) => ({
+                            employee,
+                            ...data
+                          }))
+                          .sort((a, b) => b.rating - a.rating)
+                          .map(({ employee, rating, details, department, tickets_count, spent, saved }, index) => (
+                            <Paper 
+                              key={employee}
+                              elevation={2} 
+                              sx={{ 
+                                p: 2,
+                                width: '100%',
+                                bgcolor: 'background.default',
+                                borderLeft: '4px solid',
+                                borderColor: rating >= 70 ? 'success.main' : 
+                                           rating >= 40 ? 'warning.main' : 
+                                           'error.main',
+                                position: 'relative',
+                                transition: 'transform 0.2s',
+                                
+                              }}
+                            >
+                              <Typography 
+                                variant="subtitle2" 
+                                component="span"
+                                sx={{ 
+                                  position: 'absolute',
+                                  top: 8,
+                                  right: 8,
+                                  color: 'text.secondary',
+                                  fontSize: '0.875rem'
+                                }}
+                              >
+                                #{index + 1}
+                              </Typography>
+                              <Typography variant="h6" component="h3" gutterBottom fontWeight="bold">
+                                {employee}
+                              </Typography>
+                              <Typography variant="body2" component="p" color="text.secondary" gutterBottom>
+                                Департамент: {department}
+                              </Typography>
+                              <Box sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 1,
+                                mb: 1
+                              }}>
+                                <Typography 
+                                  variant="h4" 
+                                  component="span"
+                                  color={
+                                    rating >= 70 ? 'success.main' : 
+                                    rating >= 40 ? 'warning.main' : 
+                                    'error.main'
+                                  }
+                                  fontWeight="bold"
+                                >
+                                  {rating}
+                                </Typography>
+                                <Typography variant="body2" component="span" color="text.secondary">
+                                  /100
+                                </Typography>
+                              </Box>
+                              <Typography variant="body2" component="p" color="text.secondary">
+                                Экономия: {details.savings_percentage}%
+                              </Typography>
+                              <Typography variant="body2" component="p" color="text.secondary">
+                                Билетов: {tickets_count}
+                              </Typography>
+                              <Typography variant="body2" component="p" color="text.secondary">
+                                Потрачено: {formatNumber(spent)} ₽
+                              </Typography>
+                              <Typography variant="body2" component="p" color="text.secondary">
+                                Сэкономлено: {formatNumber(saved)} ₽
+                              </Typography>
+                            </Paper>
+                          ))}
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <Box sx={{ height: '600px' }}>
+                        <Bar data={getEmployeeBarData()} options={employeeBarOptions} />
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Paper>
               </Grid>
 
               {/* Новые графики */}
@@ -1476,7 +1696,7 @@ function App() {
                         Фактические расходы
                       </Typography>
                       <Typography variant="h4" component="p" color="primary" fontWeight="bold">
-                        {data.totalSpent.toFixed(2)} ₽
+                        {formatNumber(data.totalSpent)} ₽
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -1484,10 +1704,10 @@ function App() {
                         Оптимальная стоимость
                       </Typography>
                       <Typography variant="h4" component="p" color="success.main" fontWeight="bold">
-                        {data.totalSaved.toFixed(2)} ₽
+                        {formatNumber(data.totalSaved)} ₽
                       </Typography>
                       <Typography variant="body2" component="p" color="text.secondary" sx={{ mt: 1 }}>
-                        Потенциальная экономия: {(data.totalSpent - data.totalSaved).toFixed(2)} ₽
+                        Потенциальная экономия: {formatNumber(data.totalSpent - data.totalSaved)} ₽
                       </Typography>
                     </Grid>
                   </Grid>

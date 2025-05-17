@@ -94,15 +94,29 @@ def process_xlsx_data() -> Dict:
             df['Дата и время отправления/заезда'] = pd.to_datetime(df['Дата и время отправления/заезда'])
             logger.info("Даты успешно преобразованы")
         
+        # Подсчитываем количество полетов для каждого департамента
+        dept_flights_count = df.groupby('Департаменты').size().to_dict()
+        logger.info(f"Количество полетов по департаментам: {dept_flights_count}")
+        
+        # Фильтруем департаменты с более чем 10 полетами
+        active_departments = [dept for dept, count in dept_flights_count.items() if count > 10]
+        logger.info(f"Активные департаменты (более 10 полетов): {active_departments}")
+        
         # Группируем данные по департаментам
         departments_data = {}
         total_spent = 0
         total_saved = 0
         dept_totals = {}
         
-        for dept in df['Департаменты'].unique():
+        # Добавляем обработку данных по сотрудникам
+        employees_data = {}
+        employee_totals = {}
+        
+        for dept in active_departments:
             logger.info(f"Обработка департамента: {dept}")
             dept_data = df[df['Департаменты'] == dept]
+            flights_count = len(dept_data)
+            logger.info(f"Количество полетов для департамента {dept}: {flights_count}")
             
             # Создаем список точек для scatter plot
             scatter_data = []
@@ -116,8 +130,24 @@ def process_xlsx_data() -> Dict:
                         'actual_price': float(row['Стоимость']),
                         'optimal_price': float(row['Оптимальная цена по рейсу']),
                         'route': row['Маршрут'],
-                        'savings': float(row['Разница между оптимальной ценой и стоимостью'])
+                        'savings': float(row['Разница между оптимальной ценой и стоимостью']),
+                        'employee': row['Сотрудник'] if 'Сотрудник' in row else 'Не указан'
                     })
+                    
+                    # Обработка данных по сотрудникам
+                    employee = row['Сотрудник'] if 'Сотрудник' in row else 'Не указан'
+                    if employee not in employee_totals:
+                        employee_totals[employee] = {
+                            'spent': 0,
+                            'saved': 0,
+                            'department': dept,
+                            'tickets_count': 0
+                        }
+                    
+                    employee_totals[employee]['spent'] += float(row['Стоимость'])
+                    employee_totals[employee]['saved'] += float(row['Оптимальная цена по рейсу'])
+                    employee_totals[employee]['tickets_count'] += 1
+                    
                     dept_spent += float(row['Стоимость'])
                     dept_saved += float(row['Оптимальная цена по рейсу'])
                 except Exception as e:
@@ -127,20 +157,62 @@ def process_xlsx_data() -> Dict:
             departments_data[dept] = scatter_data
             dept_totals[dept] = {
                 'spent': dept_spent,
-                'saved': dept_saved
+                'saved': dept_saved,
+                'flights_count': flights_count
             }
+            logger.info(f"Данные для департамента {dept}: {dept_totals[dept]}")
             total_spent += dept_spent
             total_saved += dept_saved
+        
+        # Рассчитываем рейтинг для каждого сотрудника
+        for employee in employee_totals:
+            totals = employee_totals[employee]
+            # Нормализуем показатели от 0 до 1
+            max_spent = max(t['spent'] for t in employee_totals.values())
+            max_saved = max(t['saved'] for t in employee_totals.values())
+            
+            # Веса для разных показателей
+            weights = {
+                'savings_percentage': 0.4,    # Процент экономии
+                'savings_amount': 0.3,        # Сумма экономии
+                'efficiency': 0.3             # Эффективность расходов
+            }
+            
+            # Расчет процента экономии (0-1)
+            savings_percentage = totals['saved'] / totals['spent'] if totals['spent'] > 0 else 0
+            
+            # Нормализованная сумма экономии (0-1)
+            normalized_savings = totals['saved'] / max_saved if max_saved > 0 else 0
+            
+            # Эффективность расходов (0-1)
+            efficiency = 1 - (totals['spent'] / max_spent) if max_spent > 0 else 0
+            
+            # Итоговый рейтинг
+            rating = (
+                savings_percentage * weights['savings_percentage'] +
+                normalized_savings * weights['savings_amount'] +
+                efficiency * weights['efficiency']
+            ) * 100
+            
+            employee_totals[employee]['rating'] = round(rating)
+            employee_totals[employee]['details'] = {
+                'savings_percentage': round(savings_percentage * 100, 1),
+                'normalized_savings': round(normalized_savings * 100, 1),
+                'efficiency': round(efficiency * 100, 1)
+            }
         
         result = {
             'totalSpent': total_spent,
             'totalSaved': total_saved,
             'departments': departments_data,
             'departmentTotals': dept_totals,
-            'departmentList': list(df['Департаменты'].unique())
+            'departmentList': active_departments,
+            'employeeTotals': employee_totals,
+            'departmentFlightsCount': dept_flights_count
         }
         
-        logger.info(f"Обработка завершена. Найдено департаментов: {len(result['departmentList'])}")
+        logger.info(f"Обработка завершена. Найдено активных департаментов: {len(active_departments)}")
+        logger.info(f"Данные по департаментам: {dept_totals}")
         return result
         
     except Exception as e:
