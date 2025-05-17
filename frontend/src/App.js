@@ -49,6 +49,8 @@ import 'chartjs-adapter-date-fns';
 import { Bar, Pie, Scatter, Line } from 'react-chartjs-2';
 import axios from 'axios';
 import tickets from './components/tickets.json';
+import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
+// import geoData from './components/russia_cities (1).geojson'; // Раскомментируйте, если хотите импортировать geojson как модуль
 
 // Регистрируем все необходимые компоненты Chart.js
 ChartJS.register(
@@ -408,6 +410,60 @@ function Header({ selectedDepartment, onDepartmentChange, departmentList }) {
       
       <Toolbar />
     </Box>
+  );
+}
+
+function RussiaRegionsMap() {
+  const [regionsGeo, setRegionsGeo] = useState(null);
+  const [citiesGeo, setCitiesGeo] = useState(null);
+
+  useEffect(() => {
+    fetch("/russia_regions.geojson")
+      .then(res => res.json())
+      .then(setRegionsGeo);
+    fetch("/russia_cities.geojson")
+      .then(res => res.json())
+      .then(setCitiesGeo);
+  }, []);
+
+  if (!regionsGeo) return <div>Загрузка карты регионов...</div>;
+
+  return (
+    <div style={{ position: "relative", width: "100%", minHeight: 500 }}>
+      <ComposableMap
+        projection="geoMercator"
+        projectionConfig={{
+          center: [100, 65],
+          scale: 400
+        }}
+        width={900}
+        height={500}
+      >
+        <Geographies geography={regionsGeo}>
+          {({ geographies }) =>
+            geographies.map((geo) => (
+              <Geography
+                key={geo.rsmKey}
+                geography={geo}
+                fill="#B3DDEF"
+                stroke="#333"
+                style={{
+                  default: { outline: "none" },
+                  hover: { fill: "#fbbf24", outline: "none" },
+                  pressed: { outline: "none" },
+                }}
+              />
+            ))
+          }
+        </Geographies>
+        {/* Точки городов */}
+        {citiesGeo && citiesGeo.features.map((feature, idx) => (
+          <Marker key={idx} coordinates={feature.geometry.coordinates}>
+            <circle r={2} fill="#d7263d" stroke="#fff" strokeWidth={0.5} />
+          </Marker>
+        ))}
+      </ComposableMap>
+    </div>
   );
 }
 
@@ -1715,6 +1771,12 @@ function App() {
               </Grid>
             </Grid>
           </Box>
+          <Paper sx={{ p: 3, mb: 4 }}>
+            <Typography variant="h5" gutterBottom>
+              Интерактивная карта России: регионы и города
+            </Typography>
+            <RussiaRegionsMap />
+          </Paper>
         </Container>
       </Box>
     </ThemeProvider>
