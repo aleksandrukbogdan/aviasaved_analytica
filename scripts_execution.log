@@ -1,0 +1,49 @@
+2025-05-23 11:19:33,607 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:19:33,607 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:19:33,608 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:19:33,608 | INFO | ExcelMergerScript.py | === Запуск скрипта: ExcelMergerScript.py ===
+2025-05-23 11:19:33,608 | INFO | ExcelMergerScript.py | Аргументы командной строки: ['upload.xlsx', 'optimal_prices_by_route.xlsx']
+2025-05-23 11:19:33,937 | ERROR | ExcelMergerScript.py | Файл не найден: upload.xlsx
+2025-05-23 11:19:53,779 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:19:53,781 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:19:53,782 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:19:53,782 | INFO | ExcelMergerScript.py | === Запуск скрипта: ExcelMergerScript.py ===
+2025-05-23 11:19:53,783 | INFO | ExcelMergerScript.py | Аргументы командной строки: ['upload.xlsx', 'optimal_prices_by_route.xlsx']
+2025-05-23 11:19:53,965 | ERROR | ExcelMergerScript.py | Файл не найден: upload.xlsx
+2025-05-23 11:30:21,426 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:30:21,427 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:30:21,427 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:30:21,427 | INFO | ExcelMergerScript.py | === Запуск скрипта: ExcelMergerScript.py ===
+2025-05-23 11:30:21,427 | INFO | ExcelMergerScript.py | Аргументы командной строки: ['upload/upload.xlsx', 'upload/optimal_prices_by_route.xlsx']
+2025-05-23 11:30:27,981 | INFO | ExcelMergerScript.py | Результаты сохранены в файл: prices.xlsx
+2025-05-23 11:30:59,340 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:30:59,340 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:30:59,341 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:30:59,341 | INFO | ExcelMergerScript.py | === Запуск скрипта: ExcelMergerScript.py ===
+2025-05-23 11:30:59,341 | INFO | ExcelMergerScript.py | Аргументы командной строки: ['upload/upload.xlsx', 'upload/optimal_prices_by_route.xlsx']
+2025-05-23 11:31:05,726 | INFO | ExcelMergerScript.py | Результаты сохранены в файл: prices.xlsx
+2025-05-23 11:39:17,920 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:39:17,920 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:39:17,920 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:39:17,921 | INFO | ExcelMergerScript.py | === Запуск скрипта: ExcelMergerScript.py ===
+2025-05-23 11:39:17,921 | INFO | ExcelMergerScript.py | Аргументы командной строки: ['upload/upload.xlsx', 'upload/optimal_prices_by_route.xlsx']
+2025-05-23 11:39:24,367 | INFO | ExcelMergerScript.py | Результаты сохранены в файл: prices.xlsx
+2025-05-23 11:40:30,765 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:40:30,765 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:40:30,765 | INFO | ExcelMergerScript.py | 
+2025-05-23 11:40:30,765 | INFO | ExcelMergerScript.py | === Запуск скрипта: ExcelMergerScript.py ===
+2025-05-23 11:40:30,765 | INFO | ExcelMergerScript.py | Аргументы командной строки: ['upload/upload.xlsx', 'upload/optimal_prices_by_route.xlsx']
+2025-05-23 11:40:37,273 | INFO | ExcelMergerScript.py | Результаты сохранены в файл: upload/prices.xlsx
+2025-05-23 19:07:20,566 | INFO | ExcelMergerScript.py | 
+2025-05-23 19:07:20,569 | INFO | ExcelMergerScript.py | 
+2025-05-23 19:07:20,569 | INFO | ExcelMergerScript.py | 
+2025-05-23 19:07:20,569 | INFO | ExcelMergerScript.py | === Запуск скрипта: ExcelMergerScript.py ===
+2025-05-23 19:07:20,569 | INFO | ExcelMergerScript.py | Аргументы командной строки: ['upload/upload.xlsx', 'upload/optimal_prices_by_route.xlsx']
+2025-05-23 19:07:22,943 | INFO | ExcelMergerScript.py | Удалены строки с департаментом 'Руководящий состав'
+2025-05-23 19:08:23,606 | INFO | ExcelMergerScript.py | 
+2025-05-23 19:08:23,607 | INFO | ExcelMergerScript.py | 
+2025-05-23 19:08:23,607 | INFO | ExcelMergerScript.py | 
+2025-05-23 19:08:23,607 | INFO | ExcelMergerScript.py | === Запуск скрипта: ExcelMergerScript.py ===
+2025-05-23 19:08:23,608 | INFO | ExcelMergerScript.py | Аргументы командной строки: ['upload/upload.xlsx', 'upload/optimal_prices_by_route.xlsx']
+2025-05-23 19:08:25,936 | INFO | ExcelMergerScript.py | Удалены строки с департаментом 'Руководящий состав'
+2025-05-23 19:08:29,988 | INFO | ExcelMergerScript.py | Результаты сохранены в файл: upload/prices.xlsx

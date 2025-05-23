@@ -8,7 +8,6 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel,
   Button,
   useTheme,
   alpha,
@@ -20,14 +19,15 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Divider,
   createTheme,
   ThemeProvider,
-  CssBaseline
+  CssBaseline,
+  Collapse,
+  TextField,
+  InputAdornment
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import BarChartIcon from '@mui/icons-material/BarChart';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import PieChartIcon from '@mui/icons-material/PieChart';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import StarIcon from '@mui/icons-material/Star';
@@ -47,10 +47,7 @@ import {
 } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 import { Bar, Pie, Scatter, Line } from 'react-chartjs-2';
-import axios from 'axios';
-import tickets from './components/tickets.json';
-import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
-// import geoData from './components/russia_cities (1).geojson'; // Раскомментируйте, если хотите импортировать geojson как модуль
+import SearchIcon from '@mui/icons-material/Search';
 
 // Регистрируем все необходимые компоненты Chart.js
 ChartJS.register(
@@ -288,12 +285,13 @@ function Header({ selectedDepartment, onDepartmentChange, departmentList }) {
             />
             
             <Typography
-              variant="h6"
+              variant="subtitle1"
               noWrap
               component="div"
               sx={{ 
                 color: '#FFFFFF',
-                fontWeight: 'bold',
+                fontWeight: 'normal',
+                marginLeft: '15px',
                 display: { xs: 'none', sm: 'block' }
               }}
             >
@@ -413,58 +411,140 @@ function Header({ selectedDepartment, onDepartmentChange, departmentList }) {
   );
 }
 
-function RussiaRegionsMap() {
-  const [regionsGeo, setRegionsGeo] = useState(null);
-  const [citiesGeo, setCitiesGeo] = useState(null);
+function RouteOptimalDaysTable({ data }) {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [showAllRoutes, setShowAllRoutes] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const INITIAL_ROUTES_COUNT = 7;
 
-  useEffect(() => {
-    fetch("/russia_regions.geojson")
-      .then(res => res.json())
-      .then(setRegionsGeo);
-    fetch("/russia_cities.geojson")
-      .then(res => res.json())
-      .then(setCitiesGeo);
-  }, []);
+  // Фильтрация данных по поисковому запросу
+  const filteredData = data.filter(item => 
+    item.route.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  if (!regionsGeo) return <div>Загрузка карты регионов...</div>;
+  // Определяем отображаемые данные
+  const displayedData = showAllRoutes ? filteredData : filteredData.slice(0, INITIAL_ROUTES_COUNT);
+  const hasMoreRoutes = filteredData.length > INITIAL_ROUTES_COUNT;
+
+  // Обработчик сворачивания таблицы
+  const handleCollapse = () => {
+    if (isExpanded) {
+      // При сворачивании сбрасываем все состояния
+      setShowAllRoutes(false);
+      setSearchQuery('');
+    }
+    setIsExpanded(!isExpanded);
+  };
 
   return (
-    <div style={{ position: "relative", width: "100%", minHeight: 500 }}>
-      <ComposableMap
-        projection="geoMercator"
-        projectionConfig={{
-          center: [100, 65],
-          scale: 400
-        }}
-        width={900}
-        height={500}
-      >
-        <Geographies geography={regionsGeo}>
-          {({ geographies }) =>
-            geographies.map((geo) => (
-              <Geography
-                key={geo.rsmKey}
-                geography={geo}
-                fill="#B3DDEF"
-                stroke="#333"
-                style={{
-                  default: { outline: "none" },
-                  hover: { fill: "#fbbf24", outline: "none" },
-                  pressed: { outline: "none" },
-                }}
-              />
-            ))
-          }
-        </Geographies>
-        {/* Точки городов */}
-        {citiesGeo && citiesGeo.features.map((feature, idx) => (
-          <Marker key={idx} coordinates={feature.geometry.coordinates}>
-            <circle r={2} fill="#d7263d" stroke="#fff" strokeWidth={0.5} />
-          </Marker>
-        ))}
-      </ComposableMap>
-    </div>
+    <Grid item xs={12}>
+      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h5">
+            Рекомендации по срокам покупки билетов
+          </Typography>
+          <Button
+            onClick={handleCollapse}
+            variant="outlined"
+            sx={{ minWidth: 140 }}
+          >
+            {isExpanded ? 'Свернуть ▼' : 'Развернуть ▲'}
+          </Button>
+        </Box>
+        
+        <Collapse in={isExpanded}>
+          <Box sx={{ mb: 2 }}>
+            <TextField
+              fullWidth
+              variant="outlined"
+              placeholder="Поиск по маршрутам..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': {
+                    borderColor: 'rgba(0, 0, 0, 0.23)',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'primary.main',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'primary.main',
+                  },
+                },
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Box>
+          
+          <Box sx={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f5f5f5' }}>
+                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Маршрут</th>
+                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Рекомендация</th>
+                  <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #ddd' }}>Количество рейсов</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayedData.map((item, index) => (
+                  <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f9f9f9' }}>
+                    <td style={{ padding: '12px', borderBottom: '1px solid #ddd' }}>{item.route}</td>
+                    <td style={{ padding: '12px', borderBottom: '1px solid #ddd' }}>
+                      Купить билет не позднее чем за {item.optimalDay} {getDayWord(item.optimalDay)} до вылета
+                    </td>
+                    <td style={{ padding: '12px', borderBottom: '1px solid #ddd', textAlign: 'right' }}>
+                      {item.flightCount}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {hasMoreRoutes && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                <Button 
+                  onClick={() => setShowAllRoutes(!showAllRoutes)}
+                  variant="text"
+                  sx={{ 
+                    color: 'primary.main',
+                    '&:hover': {
+                      backgroundColor: 'rgba(43, 78, 152, 0.1)'
+                    }
+                  }}
+                >
+                  {showAllRoutes ? `Показать ${INITIAL_ROUTES_COUNT} основных маршрутов` : `Показать все маршруты (${filteredData.length})`}
+                </Button>
+              </Box>
+            )}
+            {filteredData.length === 0 && (
+              <Box sx={{ textAlign: 'center', py: 3 }}>
+                <Typography color="text.secondary">
+                  Маршруты не найдены
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Collapse>
+      </Paper>
+    </Grid>
   );
+}
+
+// Функция для правильного склонения слова "день"
+function getDayWord(number) {
+  const cases = [2, 0, 1, 1, 1, 2];
+  const titles = ['день', 'дня', 'дней'];
+  return titles[
+    (number % 100 > 4 && number % 100 < 20) 
+    ? 2 
+    : cases[(number % 10 < 5) ? number % 10 : 5]
+  ];
 }
 
 function App() {
@@ -474,6 +554,8 @@ function App() {
   const [error, setError] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [showFullRating, setShowFullRating] = useState(false);
+  const [routeDetails, setRouteDetails] = useState(null);
+  const [departmentsData, setDepartmentsData] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -489,6 +571,7 @@ function App() {
         }
         const jsonData = await response.json();
         console.log('Данные успешно загружены:', jsonData);
+        console.log('routeOptimalDays:', jsonData.routeOptimalDays); // Отладочная информация
         setData(jsonData);
       } catch (error) {
         console.error('Ошибка при загрузке данных:', error);
@@ -500,6 +583,61 @@ function App() {
 
     fetchData();
   }, []);
+
+  // Эффект для обновления данных при изменении департамента
+  useEffect(() => {
+    if (!data) return;
+
+    // Получаем топ-10 департаментов по количеству полетов
+    const topDepartments = Object.entries(data.departmentFlightsCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([dept]) => dept);
+
+    const departments = selectedDepartment === 'all' 
+      ? topDepartments
+      : [selectedDepartment];
+
+    // Функция для расчета средневзвешенного времени для департамента
+    const calculateWeightedOptimalDay = (dept) => {
+      const deptData = data.departments[dept];
+      const routes = [...new Set(deptData.map(item => item.route))];
+      
+      const routeFlightsCount = routes.reduce((acc, route) => {
+        acc[route] = deptData.filter(item => item.route === route).length;
+        return acc;
+      }, {});
+
+      const routeOptimalDays = routes.map(route => {
+        const optimalDay = data.routeOptimalDays.find(r => r.route === route);
+        return {
+          route,
+          optimalDay: optimalDay ? optimalDay.optimalDay : 0,
+          flightsCount: routeFlightsCount[route]
+        };
+      });
+
+      const totalFlights = routeOptimalDays.reduce((sum, r) => sum + r.flightsCount, 0);
+      const weightedOptimalDay = routeOptimalDays.reduce((sum, r) => 
+        sum + (r.optimalDay * r.flightsCount), 0) / totalFlights;
+
+      return {
+        dept,
+        actualDays: data.departmentBookingDays[dept],
+        weightedOptimalDay: Math.round(weightedOptimalDay * 10) / 10,
+        routeDetails: routeOptimalDays
+      };
+    };
+
+    const departmentsData = departments.map(dept => calculateWeightedOptimalDay(dept));
+    setDepartmentsData(departmentsData);
+
+    if (selectedDepartment !== 'all') {
+      setRouteDetails(departmentsData[0].routeDetails);
+    } else {
+      setRouteDetails(null);
+    }
+  }, [selectedDepartment, data]);
 
   if (loading) return (
     <Container maxWidth="lg">
@@ -667,14 +805,23 @@ function App() {
   };
 
   const getBarData = (department) => {
+    if (!data || !data.departmentFlightsCount || !data.departmentTotals) return null;
+
     if (department === 'all') {
-      const departments = Object.keys(data.departmentTotals);
+      // Получаем топ-10 департаментов по количеству полетов
+      const topDepartments = Object.entries(data.departmentFlightsCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([dept]) => dept);
+
+      if (topDepartments.length === 0) return null;
+
       return {
-        labels: departments,
+        labels: topDepartments,
         datasets: [
           {
             label: 'Фактические расходы',
-            data: departments.map(dept => data.departmentTotals[dept].spent),
+            data: topDepartments.map(dept => data.departmentTotals[dept].spent),
             backgroundColor: 'rgba(255, 99, 132, 0.6)',
             borderColor: 'rgba(255, 99, 132, 1)',
             borderWidth: 1,
@@ -682,7 +829,7 @@ function App() {
           },
           {
             label: 'Оптимальные расходы',
-            data: departments.map(dept => data.departmentTotals[dept].saved),
+            data: topDepartments.map(dept => data.departmentTotals[dept].saved),
             backgroundColor: 'rgba(75, 192, 192, 0.6)',
             borderColor: 'rgba(75, 192, 192, 1)',
             borderWidth: 1,
@@ -692,9 +839,13 @@ function App() {
       };
     }
 
+    if (!data.departments[department]) return null;
+
     const departmentData = data.departments[department];
     const routes = [...new Set(departmentData.map(item => item.route))];
     
+    if (routes.length === 0) return null;
+
     return {
       labels: routes,
       datasets: [
@@ -751,6 +902,12 @@ function App() {
     };
   };
 
+  // Обновляем настройки для всех графиков
+  const commonFontSettings = {
+    family: '"Jura", sans-serif',
+    weight: 600
+  };
+
   const barOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -759,7 +916,7 @@ function App() {
         display: true,
         text: (context) => {
           const department = context.chart.data.datasets[0].department || 'all';
-          return `Сравнение фактических и оптимальных расходов ${department === 'all' ? '(Все департаменты)' : `(Департамент: ${department})`}`;
+          return `Сравнение фактических и оптимальных расходов ${department === 'all' ? '(Топ-10 департаментов по количеству полетов)' : `(Департамент: ${department})`}`;
         }
       },
       tooltip: {
@@ -767,6 +924,16 @@ function App() {
           label: function(context) {
             return `${context.dataset.label}: ${formatNumber(context.raw)} руб.`;
           }
+        },
+        titleFont: {
+          family: '"Noto Sans SC", sans-serif',
+          weight: 700
+        },
+        bodyFont: commonFontSettings
+      },
+      legend: {
+        labels: {
+          font: commonFontSettings
         }
       }
     },
@@ -775,12 +942,19 @@ function App() {
         beginAtZero: true,
         title: {
           display: true,
-          text: 'Сумма (руб.)'
+          text: 'Сумма (руб.)',
+          font: commonFontSettings
         },
         ticks: {
           callback: function(value) {
             return formatNumber(value);
-          }
+          },
+          font: commonFontSettings
+        }
+      },
+      x: {
+        ticks: {
+          font: commonFontSettings
         }
       }
     }
@@ -897,12 +1071,29 @@ function App() {
         callbacks: {
           label: function(context) {
             const point = context.raw;
-            return [
-              `Маршрут: ${point.routes.join(', ')}`,
-              `Стоимость: ${formatNumber(point.y)} руб.`,
-              `Экономия: ${formatNumber(point.savings)} руб.`
-            ];
+            if (context.dataset.label === 'Фактическая стоимость') {
+              return [
+                `Маршрут: ${point.routes.join(', ')}`,
+                `Стоимость: ${formatNumber(point.y)} руб.`
+              ];
+            } else {
+              return [
+                `Маршрут: ${point.routes.join(', ')}`,
+                `Стоимость: ${formatNumber(point.y)} руб.`,
+                `Экономия: ${formatNumber(point.savings)} руб.`
+              ];
+            }
           }
+        },
+        titleFont: {
+          family: '"Noto Sans SC", sans-serif',
+          weight: 700
+        },
+        bodyFont: commonFontSettings
+      },
+      legend: {
+        labels: {
+          font: commonFontSettings
         }
       }
     },
@@ -914,21 +1105,26 @@ function App() {
           displayFormats: {
             day: 'dd.MM.yyyy'
           },
-          tooltipFormat: 'dd.MM.yyyy HH:mm'
+          tooltipFormat: 'dd.MM.yyyy'
         },
         title: {
           display: true,
-          text: 'Дата'
+          text: 'Дата',
+          font: commonFontSettings
         },
         grid: {
           display: true,
           color: 'rgba(0, 0, 0, 0.1)'
+        },
+        ticks: {
+          font: commonFontSettings
         }
       },
       y: {
         title: {
           display: true,
-          text: 'Стоимость (руб.)'
+          text: 'Стоимость (руб.)',
+          font: commonFontSettings
         },
         beginAtZero: true,
         grid: {
@@ -938,7 +1134,8 @@ function App() {
         ticks: {
           callback: function(value) {
             return formatNumber(value);
-          }
+          },
+          font: commonFontSettings
         }
       }
     },
@@ -948,11 +1145,11 @@ function App() {
     },
     elements: {
       point: {
-        radius: 4,
-        hoverRadius: 6
+        radius: 3,
+        hoverRadius: 4
       },
       line: {
-        tension: 0
+        tension: 0.05
       }
     }
   };
@@ -1003,6 +1200,16 @@ function App() {
             const percentage = ((value / total) * 100).toFixed(1);
             return `${context.label}: ${formatNumber(value)} руб. (${percentage}%)`;
           }
+        },
+        titleFont: {
+          family: '"Noto Sans SC", sans-serif',
+          weight: 700
+        },
+        bodyFont: commonFontSettings
+      },
+      legend: {
+        labels: {
+          font: commonFontSettings
         }
       }
     }
@@ -1017,6 +1224,10 @@ function App() {
         text: (context) => {
           const department = context.chart.data.datasets[0].department || 'all';
           return `Динамика экономии по времени ${department === 'all' ? '(Все департаменты)' : `(Департамент: ${department})`}`;
+        },
+        font: {
+          family: '"Noto Sans SC", sans-serif',
+          weight: 700
         }
       },
       tooltip: {
@@ -1028,6 +1239,16 @@ function App() {
               `Маршруты: ${point.routes.join(', ')}`
             ];
           }
+        },
+        titleFont: {
+          family: '"Noto Sans SC", sans-serif',
+          weight: 700
+        },
+        bodyFont: commonFontSettings
+      },
+      legend: {
+        labels: {
+          font: commonFontSettings
         }
       }
     },
@@ -1042,19 +1263,22 @@ function App() {
         },
         title: {
           display: true,
-          text: 'Дата'
+          text: 'Дата',
+          font: commonFontSettings
         }
       },
       y: {
         title: {
           display: true,
-          text: 'Экономия (руб.)'
+          text: 'Экономия (руб.)',
+          font: commonFontSettings
         },
         beginAtZero: true,
         ticks: {
           callback: function(value) {
             return formatNumber(value);
-          }
+          },
+          font: commonFontSettings
         }
       }
     }
@@ -1063,40 +1287,60 @@ function App() {
   // Функция для расчета рейтинга департамента
   const calculateDepartmentRating = (dept, totals) => {
     console.log(`Расчет рейтинга для департамента ${dept}:`, totals);
+    
+    // Получаем количество полетов
+    const flightsCount = totals.flights_count || 0;
+    if (flightsCount === 0) return { rating: 0, details: {} };
+
     // Нормализуем показатели от 0 до 1
     const maxSpent = Math.max(...Object.values(data.departmentTotals).map(d => d.spent));
     const maxSaved = Math.max(...Object.values(data.departmentTotals).map(d => d.saved));
+    const maxFlights = Math.max(...Object.values(data.departmentTotals).map(d => d.flights_count));
     
     // Веса для разных показателей
     const weights = {
       savingsPercentage: 0.4,    // Процент экономии
-      savingsAmount: 0.3,        // Сумма экономии
-      efficiency: 0.3            // Эффективность расходов
+      savingsPerFlight: 0.3,     // Экономия на один полет
+      bookingTime: 0.3           // Время покупки билета до вылета
     };
 
     // Расчет процента экономии (0-1)
     const savingsPercentage = totals.saved / totals.spent;
     
-    // Нормализованная сумма экономии (0-1)
-    const normalizedSavings = totals.saved / maxSaved;
+    // Расчет экономии на один полет (0-1)
+    const savingsPerFlight = totals.saved / flightsCount;
+    const maxSavingsPerFlight = maxSaved / maxFlights;
+    const normalizedSavingsPerFlight = savingsPerFlight / maxSavingsPerFlight;
     
-    // Эффективность расходов (0-1)
-    // Чем меньше потрачено при той же экономии, тем выше эффективность
-    const efficiency = 1 - (totals.spent / maxSpent);
+    // Расчет эффективности по времени покупки билета (0-1)
+    const actualDays = data.departmentBookingDays[dept] || 0;
+    const optimalDays = data.routeOptimalDays
+      .filter(route => data.departments[dept]?.some(item => item.route === route.route))
+      .reduce((sum, route) => sum + route.optimalDay, 0) / 
+      (data.routeOptimalDays.filter(route => 
+        data.departments[dept]?.some(item => item.route === route.route)
+      ).length || 1);
+
+    // Нормализуем разницу между фактическим и оптимальным временем
+    // Максимальная разница в 30 дней считается как 0, совпадение считается как 1
+    const timeEfficiency = Math.max(0, 1 - Math.abs(actualDays - optimalDays) / 30);
 
     // Итоговый рейтинг
     const rating = (
       savingsPercentage * weights.savingsPercentage +
-      normalizedSavings * weights.savingsAmount +
-      efficiency * weights.efficiency
+      normalizedSavingsPerFlight * weights.savingsPerFlight +
+      timeEfficiency * weights.bookingTime
     ) * 100;
 
     return {
       rating: Math.round(rating),
       details: {
         savingsPercentage: (savingsPercentage * 100).toFixed(1),
-        normalizedSavings: (normalizedSavings * 100).toFixed(1),
-        efficiency: (efficiency * 100).toFixed(1)
+        savingsPerFlight: Math.round(savingsPerFlight),
+        timeEfficiency: (timeEfficiency * 100).toFixed(1),
+        actualDays: Math.round(actualDays),
+        optimalDays: Math.round(optimalDays),
+        flightsCount: flightsCount
       }
     };
   };
@@ -1122,7 +1366,7 @@ function App() {
     // Анализ формулы рейтинга
     recommendations.push({
       title: "🎯 Как подняться в рейтинге?",
-      description: "Ваш рейтинг рассчитывается по формуле: (Процент экономии × 40%) + (Нормализованная сумма экономии × 30%) + (Эффективность расходов × 30%). Максимальный балл - 100!"
+      description: "Ваш рейтинг рассчитывается по формуле: (Процент экономии × 40%) + (Экономия на один полет × 30%) + (Эффективность времени покупки × 30%). Максимальный балл - 100!"
     });
 
     // Рекомендации по проценту экономии (40% веса)
@@ -1131,16 +1375,16 @@ function App() {
       description: "Это самый важный показатель (40% веса)! Бронируйте билеты за 2-3 месяца до вылета - это даст вам до 30% экономии. Используйте гибкие даты и альтернативные аэропорты."
     });
 
-    // Рекомендации по сумме экономии (30% веса)
+    // Рекомендации по экономии на полет (30% веса)
     recommendations.push({
-      title: "💰 Стратегия 2: Наращиваем сумму экономии",
-      description: "Второй по важности показатель (30% веса). Объединяйте командировки в одном направлении, используйте программы лояльности авиакомпаний. Каждый сэкономленный рубль увеличивает ваш рейтинг!"
+      title: "💰 Стратегия 2: Экономия на каждый полет",
+      description: "Второй по важности показатель (30% веса). Важна не общая сумма экономии, а сколько вы экономите на каждый полет. Используйте программы лояльности, выбирайте оптимальные даты и маршруты для каждого полета."
     });
 
-    // Рекомендации по эффективности (30% веса)
+    // Рекомендации по времени покупки (30% веса)
     recommendations.push({
-      title: "⚡ Стратегия 3: Повышаем эффективность",
-      description: "Третий ключевой показатель (30% веса). Планируйте командировки в непиковые сезоны, используйте стыковочные рейсы. Чем меньше вы тратите при той же экономии, тем выше эффективность!"
+      title: "⏰ Стратегия 3: Оптимизируем время покупки",
+      description: "Третий ключевой показатель (30% веса). Покупайте билеты в оптимальное время для каждого маршрута. Чем ближе ваше время покупки к оптимальному, тем выше рейтинг!"
     });
 
     // Сравнение с лидерами
@@ -1158,11 +1402,6 @@ function App() {
         description: `Топ-3 департамента: ${topDepartments.map(d => `${d.dept} (${d.rating} баллов)`).join(', ')}. Изучите их стратегии бронирования и адаптируйте под себя!`
       });
     }
-
-    // Сезонные рекомендации
-    
-
-    
 
     return recommendations;
   };
@@ -1264,6 +1503,101 @@ function App() {
     };
   };
 
+  // Функция для создания данных графика времени до вылета
+  const getBookingDaysData = () => {
+    if (!departmentsData) return null;
+
+    return {
+      labels: departmentsData.map(d => d.dept),
+      datasets: [
+        {
+          label: 'Среднее время до вылета (дни)',
+          data: departmentsData.map(d => d.actualDays),
+          backgroundColor: 'rgba(54, 162, 235, 0.6)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1,
+          department: selectedDepartment
+        },
+        {
+          label: 'Средневзвешенное оптимальное время (дни)',
+          data: departmentsData.map(d => d.weightedOptimalDay),
+          backgroundColor: 'rgba(75, 192, 192, 0.6)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1,
+          department: selectedDepartment
+        }
+      ]
+    };
+  };
+
+  const bookingDaysOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      title: {
+        display: true,
+        text: (context) => {
+          const department = context.chart.data.datasets[0].department || 'all';
+          return `Среднее время до вылета ${department === 'all' ? '(Топ-10 департаментов по количеству полетов)' : `(Департамент: ${department})`}`;
+        },
+        font: {
+          family: '"Noto Sans SC", sans-serif',
+          weight: 700
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const value = context.raw;
+            const label = context.dataset.label;
+            if (label.includes('оптимальное')) {
+              if (selectedDepartment === 'all') {
+                return `${label}: ${value} дней`;
+              } else if (routeDetails) {
+                return [
+                  `${label}: ${value} дней`,
+                  'Детали по маршрутам:',
+                  ...routeDetails.map(r => 
+                    `${r.route}: ${r.optimalDay} дней (${r.flightsCount} полетов)`
+                  )
+                ];
+              }
+            }
+            return `${label}: ${value} дней`;
+          }
+        },
+        titleFont: {
+          family: '"Noto Sans SC", sans-serif',
+          weight: 700
+        },
+        bodyFont: commonFontSettings
+      },
+      legend: {
+        labels: {
+          font: commonFontSettings
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: 'Дни до вылета',
+          font: commonFontSettings
+        },
+        ticks: {
+          font: commonFontSettings
+        }
+      },
+      x: {
+        ticks: {
+          font: commonFontSettings
+        }
+      }
+    }
+  };
+
   // Стили для карточек
   const cardStyle = {
     p: 3,
@@ -1313,11 +1647,20 @@ function App() {
         <Container 
           maxWidth="lg" 
           sx={{ 
-            ml: { sm: '250px' }, // Отступ для навигационного меню
-            width: { sm: `calc(100% - 250px)` }, // Ширина контейнера с учетом меню
+            ml: { sm: '250px' },
+            width: { sm: `calc(100% - 250px)` },
             transition: 'margin 0.2s ease-in-out'
           }}
         >
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+              <Typography>Загрузка данных...</Typography>
+            </Box>
+          ) : error ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+              <Typography color="error">{error}</Typography>
+            </Box>
+          ) : (
           <Box sx={{ mb: 6 }}>
             <Typography 
               variant="h3" 
@@ -1619,6 +1962,51 @@ function App() {
                 </Paper>
               </Grid>
 
+                {/* Таблица маршрутов */}
+                {data && data.routeOptimalDays && data.routeOptimalDays.length > 0 && (
+                  <RouteOptimalDaysTable data={data.routeOptimalDays} />
+                )}
+
+              
+              {/* Новый график времени до вылета */}
+              <Grid item xs={12}>
+                <Paper sx={cardStyle}>
+                  <Typography variant="h6" component="h2" sx={titleStyle} align="center">
+                    Среднее время до вылета
+                  </Typography>
+                  <Box sx={{ height: 400, position: 'relative' }}>
+                    {departmentsData && (
+                      <Bar 
+                        data={getBookingDaysData()}
+                        options={bookingDaysOptions}
+                      />
+                    )}
+                  </Box>
+                </Paper>
+              </Grid>
+              <Grid item xs={12}>
+                <Paper sx={cardStyle}>
+                  <Typography variant="h6" component="h2" sx={titleStyle} align="center">
+                    Сравнение фактических и оптимальных расходов
+                  </Typography>
+                  <Box sx={{ height: 500, position: 'relative' }}>
+                    {getBarData(selectedDepartment) ? (
+                      <Bar data={getBarData(selectedDepartment)} options={barOptions} />
+                    ) : (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        alignItems: 'center', 
+                        height: '100%' 
+                      }}>
+                        <Typography color="text.secondary">
+                          Нет данных для отображения
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Paper>
+              </Grid>
               {/* Новые графики */}
               <Grid item xs={12} md={6} id="distribution">
                 <Paper sx={cardStyle}>
@@ -1650,7 +2038,7 @@ function App() {
                   <Typography variant="h6" component="h2" sx={titleStyle} align="center">
                     Сумма стоимости по неделям
                   </Typography>
-                  <Box sx={{ height: 400, position: 'relative' }}>
+                  <Box sx={{ height: 500, position: 'relative' }}>
                     <Line 
                       data={getWeeklyTrendData(selectedDepartment)}
                       options={{
@@ -1662,6 +2050,10 @@ function App() {
                             text: (context) => {
                               const department = context.chart.data.datasets[0].department || 'all';
                               return `Сумма стоимости по неделям ${department === 'all' ? '(Все департаменты)' : `(Департамент: ${department})`}`;
+                            },
+                            font: {
+                              family: '"Noto Sans SC", sans-serif',
+                              weight: 600
                             }
                           },
                           tooltip: {
@@ -1670,6 +2062,11 @@ function App() {
                                 return `${context.dataset.label}: ${context.raw.toFixed(2)} руб.`;
                               }
                             }
+                          },
+                          legend: {
+                            labels: {
+                              font: commonFontSettings
+                            }
                           }
                         },
                         scales: {
@@ -1677,13 +2074,23 @@ function App() {
                             beginAtZero: true,
                             title: {
                               display: true,
-                              text: 'Сумма стоимости (руб.)'
+                              text: 'Сумма стоимости (руб.)',
+                              font: commonFontSettings
+                            },
+                            ticks: {
+                              callback: function(value) {
+                                return formatNumber(value);
+                              },
+                              font: commonFontSettings
                             },
                             grid: {
                               color: 'rgba(0, 0, 0, 0.1)'
                             }
                           },
                           x: {
+                            ticks: {
+                              font: commonFontSettings
+                            },
                             grid: {
                               color: 'rgba(0, 0, 0, 0.1)'
                             }
@@ -1699,28 +2106,21 @@ function App() {
                 </Paper>
               </Grid>
 
+              
+
               {/* Существующие графики */}
               <Grid item xs={12}>
                 <Paper sx={cardStyle}>
                   <Typography variant="h6" component="h2" sx={titleStyle} align="center">
-                    Динамика цен по времени
+                    Динамика цен по дням
                   </Typography>
-                  <Box sx={{ height: 400, position: 'relative' }}>
+                  <Box sx={{ height: 500, position: 'relative' }}>
                     <Scatter data={getScatterData(selectedDepartment)} options={scatterOptions} />
                   </Box>
                 </Paper>
               </Grid>
 
-              <Grid item xs={12}>
-                <Paper sx={cardStyle}>
-                  <Typography variant="h6" component="h2" sx={titleStyle} align="center">
-                    Сравнение фактических и оптимальных расходов
-                  </Typography>
-                  <Box sx={{ height: 400, position: 'relative' }}>
-                    <Bar data={getBarData(selectedDepartment)} options={barOptions} />
-                  </Box>
-                </Paper>
-              </Grid>
+              
 
               <Grid item xs={12}>
                 <Paper sx={cardStyle}>
@@ -1738,7 +2138,7 @@ function App() {
                   <Typography variant="h6" component="h2" sx={titleStyle} align="center">
                     Общая статистика по экономии
                   </Typography>
-                  <Box sx={{ height: 400, position: 'relative' }}>
+                  <Box sx={{ height: 600, position: 'relative' }}>
                     <Pie data={getPieData()} options={pieOptions} />
                   </Box>
                 </Paper>
@@ -1771,12 +2171,7 @@ function App() {
               </Grid>
             </Grid>
           </Box>
-          <Paper sx={{ p: 3, mb: 4 }}>
-            <Typography variant="h5" gutterBottom>
-              Интерактивная карта России: регионы и города
-            </Typography>
-            <RussiaRegionsMap />
-          </Paper>
+          )}
         </Container>
       </Box>
     </ThemeProvider>

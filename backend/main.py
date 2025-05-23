@@ -83,11 +83,42 @@ def process_xlsx_data() -> Dict:
         # Проверяем существование файла
         if not os.path.exists(XLSX_PATH):
             logger.error(f"Файл не найден: {XLSX_PATH}")
-            raise HTTPException(status_code=404, detail=f"Файл не найден: {XLSX_PATH}")
+            return {
+                'totalSpent': 0,
+                'totalSaved': 0,
+                'departments': {},
+                'departmentTotals': {},
+                'departmentList': [],
+                'employeeTotals': {},
+                'departmentFlightsCount': {},
+                'routeOptimalDays': [],
+                'departmentBookingDays': {}  # Новое поле для хранения данных о времени до вылета
+            }
         
         # Читаем XLSX файл
         df = pd.read_excel(XLSX_PATH)
         logger.info(f"Файл успешно прочитан. Колонки: {df.columns.tolist()}")
+        
+        # Заполняем пропущенные значения в столбце 'Ближайший день к оптимальной цене (0-7)' числом 10
+        if 'Ближайший день к оптимальной цене (0-7)' in df.columns:
+            df['Ближайший день к оптимальной цене (0-7)'] = df['Ближайший день к оптимальной цене (0-7)'].fillna(10)
+        
+        # Подсчитываем количество вылетов для каждого маршрута
+        route_counts = df.groupby('Маршрут')['Количество вылетов'].sum().to_dict()
+        
+        # Получаем уникальные значения маршрутов и дней к оптимальной цене
+        route_optimal_days = df[['Маршрут', 'Ближайший день к оптимальной цене (0-7)']].drop_duplicates().values.tolist()
+        route_optimal_days = [
+            {
+                'route': route, 
+                'optimalDay': int(day),
+                'flightCount': int(route_counts.get(route, 0))
+            } 
+            for route, day in route_optimal_days
+        ]
+        # Сортируем по количеству вылетов (по убыванию)
+        route_optimal_days.sort(key=lambda x: x['flightCount'], reverse=True)
+        logger.info(f"Найдено уникальных маршрутов: {len(route_optimal_days)}")
         
         # Преобразуем время в datetime если оно в строковом формате
         if 'Дата и время отправления/заезда' in df.columns:
@@ -112,6 +143,9 @@ def process_xlsx_data() -> Dict:
         employees_data = {}
         employee_totals = {}
         
+        # Добавляем обработку данных о времени до вылета
+        department_booking_days = {}
+        
         for dept in active_departments:
             logger.info(f"Обработка департамента: {dept}")
             dept_data = df[df['Департаменты'] == dept]
@@ -122,6 +156,11 @@ def process_xlsx_data() -> Dict:
             scatter_data = []
             dept_spent = 0
             dept_saved = 0
+            
+            # Обработка данных о времени до вылета
+            if 'Время до вылета (дни)' in dept_data.columns:
+                avg_booking_days = dept_data['Время до вылета (дни)'].mean()
+                department_booking_days[dept] = round(avg_booking_days, 1)
             
             for _, row in dept_data.iterrows():
                 try:
@@ -208,7 +247,9 @@ def process_xlsx_data() -> Dict:
             'departmentTotals': dept_totals,
             'departmentList': active_departments,
             'employeeTotals': employee_totals,
-            'departmentFlightsCount': dept_flights_count
+            'departmentFlightsCount': dept_flights_count,
+            'routeOptimalDays': route_optimal_days,
+            'departmentBookingDays': department_booking_days  # Добавляем новые данные в результат
         }
         
         logger.info(f"Обработка завершена. Найдено активных департаментов: {len(active_departments)}")
