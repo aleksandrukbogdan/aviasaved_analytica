@@ -6,7 +6,6 @@ from pydantic import BaseModel
 from typing import List, Dict
 import pandas as pd
 from datetime import datetime
-import sqlite3
 import os
 import logging
 
@@ -14,19 +13,14 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Определяем базовый путь проекта
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
-PUBLIC_DIR = os.path.join(FRONTEND_DIR, "public")
-UPLOAD_DIR = os.path.join(BASE_DIR, "upload")
+# Определяем пути из переменных окружения
+BASE_DIR = os.getenv('BASE_DIR', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+UPLOAD_DIR = os.getenv('UPLOAD_DIR', os.path.join(BASE_DIR, "upload"))
 
 # Создаем директории, если они не существуют
-os.makedirs(PUBLIC_DIR, exist_ok=True)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 logger.info(f"BASE_DIR: {BASE_DIR}")
-logger.info(f"FRONTEND_DIR: {FRONTEND_DIR}")
-logger.info(f"PUBLIC_DIR: {PUBLIC_DIR}")
 logger.info(f"UPLOAD_DIR: {UPLOAD_DIR}")
 
 app = FastAPI()
@@ -34,14 +28,11 @@ app = FastAPI()
 # Настройка CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8000", "http://127.0.0.1:3000", "http://127.0.0.1:8000"],
+    allow_origins=["http://localhost:3000", "http://localhost:8000", "http://127.0.0.1:3000", "http://127.0.0.1:8000", "http://frontend:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Монтируем статические файлы
-app.mount("/static", StaticFiles(directory=PUBLIC_DIR), name="static")
 
 # Модель данных
 class TicketData(BaseModel):
@@ -51,24 +42,7 @@ class TicketData(BaseModel):
     savings: float
     date: str
 
-# Создание базы данных
-def init_db():
-    conn = sqlite3.connect('tickets.db')
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS tickets
-        (id INTEGER PRIMARY KEY AUTOINCREMENT,
-         department TEXT,
-         destination TEXT,
-         price REAL,
-         savings REAL,
-         date TEXT)
-    ''')
-    conn.commit()
-    conn.close()
 
-# Инициализация базы данных при запуске
-init_db()
 
 # Хранилище для данных из optimal_prices_by_route.xlsx
 optimal_prices_data = []
@@ -107,14 +81,15 @@ def process_xlsx_data() -> Dict:
         route_counts = df.groupby('Маршрут')['Количество вылетов'].sum().to_dict()
         
         # Получаем уникальные значения маршрутов и дней к оптимальной цене
-        route_optimal_days = df[['Маршрут', 'Ближайший день к оптимальной цене (0-7)']].drop_duplicates().values.tolist()
+        route_optimal_days = df[['Маршрут', 'Ближайший день к оптимальной цене (0-7)', 'Оптимальная цена по рейсу']].drop_duplicates().values.tolist()
         route_optimal_days = [
             {
                 'route': route, 
                 'optimalDay': int(day),
-                'flightCount': int(route_counts.get(route, 0))
+                'flightCount': int(route_counts.get(route, 0)),
+                'optimalPrice': float(price)
             } 
-            for route, day in route_optimal_days
+            for route, day, price in route_optimal_days
         ]
         # Сортируем по количеству вылетов (по убыванию)
         route_optimal_days.sort(key=lambda x: x['flightCount'], reverse=True)
@@ -249,7 +224,7 @@ def process_xlsx_data() -> Dict:
             'employeeTotals': employee_totals,
             'departmentFlightsCount': dept_flights_count,
             'routeOptimalDays': route_optimal_days,
-            'departmentBookingDays': department_booking_days  # Добавляем новые данные в результат
+            'departmentBookingDays': department_booking_days 
         }
         
         logger.info(f"Обработка завершена. Найдено активных департаментов: {len(active_departments)}")
@@ -260,45 +235,6 @@ def process_xlsx_data() -> Dict:
         logger.error(f"Ошибка при обработке XLSX файла: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Ошибка при обработке XLSX файла: {str(e)}")
 
-@app.post("/tickets/")
-async def create_ticket(ticket: TicketData):
-    conn = sqlite3.connect('tickets.db')
-    c = conn.cursor()
-    c.execute('''
-        INSERT INTO tickets (department, destination, price, savings, date)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (ticket.department, ticket.destination, ticket.price, ticket.savings, ticket.date))
-    conn.commit()
-    conn.close()
-    return {"message": "Ticket data saved successfully"}
-
-@app.get("/tickets/")
-async def get_tickets():
-    conn = sqlite3.connect('tickets.db')
-    df = pd.read_sql_query("SELECT * FROM tickets", conn)
-    conn.close()
-    return df.to_dict(orient='records')
-
-@app.get("/export/")
-async def export_to_excel():
-    conn = sqlite3.connect('tickets.db')
-    df = pd.read_sql_query("SELECT * FROM tickets", conn)
-    conn.close()
-    
-    # Создание Excel файла
-    filename = f"ticket_savings_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-    df.to_excel(filename, index=False)
-    
-    return {"filename": filename}
-
-@app.post("/upload-xlsx/")
-async def upload_xlsx(file: UploadFile = File(...)):
-    if not file.filename.endswith('.xlsx'):
-        raise HTTPException(status_code=400, detail="Требуется файл формата .xlsx")
-    df = pd.read_excel(file.file)
-    global optimal_prices_data
-    optimal_prices_data = df.to_dict(orient='records')
-    return {"message": "Файл успешно загружен и обработан", "rows": len(optimal_prices_data)}
 
 @app.get("/optimal-prices/")
 async def get_optimal_prices():
@@ -306,7 +242,7 @@ async def get_optimal_prices():
 
 @app.get("/")
 async def read_root():
-    index_path = os.path.join(PUBLIC_DIR, "index.html")
+    index_path = os.path.join(os.path.join(BASE_DIR, "frontend", "public"), "index.html")
     logger.info(f"Попытка загрузить index.html из: {index_path}")
     if not os.path.exists(index_path):
         logger.error(f"Файл index.html не найден по пути: {index_path}")
@@ -326,6 +262,25 @@ async def get_data():
         )
     except Exception as e:
         logger.error(f"Ошибка при получении данных: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/upload/")
+async def upload_file(file: UploadFile = File(...)):
+    try:
+        # Проверяем расширение файла
+        if not file.filename.endswith('.xlsx'):
+            raise HTTPException(status_code=400, detail="Только .xlsx файлы разрешены")
+        
+        # Сохраняем файл
+        file_path = os.path.join(UPLOAD_DIR, "prices.xlsx")
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+        
+        logger.info(f"Файл успешно загружен: {file_path}")
+        return {"message": "Файл успешно загружен"}
+    except Exception as e:
+        logger.error(f"Ошибка при загрузке файла: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

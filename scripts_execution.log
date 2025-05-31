@@ -47,3 +47,10 @@
 2025-05-23 19:08:23,608 | INFO | ExcelMergerScript.py | Аргументы командной строки: ['upload/upload.xlsx', 'upload/optimal_prices_by_route.xlsx']
 2025-05-23 19:08:25,936 | INFO | ExcelMergerScript.py | Удалены строки с департаментом 'Руководящий состав'
 2025-05-23 19:08:29,988 | INFO | ExcelMergerScript.py | Результаты сохранены в файл: upload/prices.xlsx
+2025-05-31 19:32:08,572 | INFO | ExcelMergerScript.py | 
+2025-05-31 19:32:08,573 | INFO | ExcelMergerScript.py | 
+2025-05-31 19:32:08,573 | INFO | ExcelMergerScript.py | 
+2025-05-31 19:32:08,573 | INFO | ExcelMergerScript.py | === Запуск скрипта: ExcelMergerScript.py ===
+2025-05-31 19:32:08,573 | INFO | ExcelMergerScript.py | Аргументы командной строки: ['upload/upload.xlsx', 'upload/optimal_prices_by_route.xlsx']
+2025-05-31 19:32:09,219 | INFO | ExcelMergerScript.py | Удалены строки с департаментом 'Руководящий состав'
+2025-05-31 19:32:10,073 | INFO | ExcelMergerScript.py | Результаты сохранены в файл: upload/prices.xlsx

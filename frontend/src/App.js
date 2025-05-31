@@ -191,13 +191,8 @@ const formatNumber = (number) => {
   return new Intl.NumberFormat('ru-RU').format(Math.round(number));
 };
 
-function Header({ selectedDepartment, onDepartmentChange, departmentList }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
+function Header({ selectedDepartment, onDepartmentChange, departmentList, onDrawerToggle }) {
   const [searchTerm, setSearchTerm] = useState('');
-
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
 
   const menuItems = [
     { text: 'Рейтинг департаментов', icon: <StarIcon />, id: 'rating' },
@@ -212,46 +207,12 @@ function Header({ selectedDepartment, onDepartmentChange, departmentList }) {
     dept.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const drawer = (
-    <Box sx={{ width: 250 }}>
-      <List>
-        {menuItems.map((item) => (
-          <ListItem 
-            button 
-            key={item.id}
-            onClick={() => {
-              document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth' });
-              setMobileOpen(false);
-            }}
-            sx={{
-              '&:hover': {
-                backgroundColor: 'rgba(43, 78, 152, 0.1)',
-              }
-            }}
-          >
-            <ListItemIcon sx={{ color: '#2B4E98' }}>
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText 
-              primary={item.text} 
-              primaryTypographyProps={{
-                color: '#4B4B4C',
-                fontWeight: 500
-              }}
-            />
-          </ListItem>
-        ))}
-      </List>
-    </Box>
-  );
-
   return (
     <Box sx={{ flexGrow: 1 }}>
       <AppBar 
         position="fixed" 
         sx={{ 
           background: 'linear-gradient(135deg, #2B4E98, #605BA2)',
-          backdropFilter: 'blur(10px)',
           boxShadow: 1,
           zIndex: theme.zIndex.drawer + 1
         }}
@@ -261,7 +222,7 @@ function Header({ selectedDepartment, onDepartmentChange, departmentList }) {
             color="inherit"
             aria-label="open drawer"
             edge="start"
-            onClick={handleDrawerToggle}
+            onClick={onDrawerToggle}
             sx={{ mr: 2, display: { sm: 'none' } }}
           >
             <MenuIcon />
@@ -303,7 +264,7 @@ function Header({ selectedDepartment, onDepartmentChange, departmentList }) {
             display: 'flex', 
             alignItems: 'center',
             gap: 2,
-            flexGrow: { xs: 1, sm: 0 },
+            flexGrow: { xs: 0, sm: 0 },
             justifyContent: { xs: 'flex-end', sm: 'flex-start' }
           }}>
             <Typography
@@ -341,7 +302,6 @@ function Header({ selectedDepartment, onDepartmentChange, departmentList }) {
                 }
               }}
             >
-              
               <Select
                 value={selectedDepartment}
                 onChange={onDepartmentChange}
@@ -363,49 +323,6 @@ function Header({ selectedDepartment, onDepartmentChange, departmentList }) {
         </Toolbar>
       </AppBar>
       
-      <Drawer
-        variant="temporary"
-        anchor="left"
-        open={mobileOpen}
-        onClose={handleDrawerToggle}
-        ModalProps={{
-          keepMounted: true,
-        }}
-        sx={{
-          display: { xs: 'block', sm: 'none' },
-          '& .MuiDrawer-paper': { 
-            boxSizing: 'border-box', 
-            width: 250,
-            background: alpha(theme.palette.background.paper, 0.9),
-            backdropFilter: 'blur(10px)'
-          },
-        }}
-      >
-        {drawer}
-      </Drawer>
-
-      {/* Постоянное навигационное меню для десктопа */}
-      <Drawer
-        variant="permanent"
-        sx={{
-          display: { xs: 'none', sm: 'block' },
-          '& .MuiDrawer-paper': { 
-            boxSizing: 'border-box', 
-            width: 250,
-            background: alpha(theme.palette.background.paper, 0.9),
-            backdropFilter: 'blur(10px)',
-            borderRight: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-            position: 'fixed',
-            height: '100vh',
-            top: 64,
-            zIndex: theme.zIndex.drawer
-          },
-        }}
-        open
-      >
-        {drawer}
-      </Drawer>
-      
       <Toolbar />
     </Box>
   );
@@ -416,6 +333,9 @@ function RouteOptimalDaysTable({ data }) {
   const [showAllRoutes, setShowAllRoutes] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const INITIAL_ROUTES_COUNT = 7;
+
+  // Добавляем логирование данных
+  console.log('RouteOptimalDaysTable data:', data);
 
   // Фильтрация данных по поисковому запросу
   const filteredData = data.filter(item => 
@@ -489,7 +409,7 @@ function RouteOptimalDaysTable({ data }) {
                 <tr style={{ backgroundColor: '#f5f5f5' }}>
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Маршрут</th>
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Рекомендация</th>
-                  <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #ddd' }}>Количество рейсов</th>
+                  <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #ddd' }}>Оптимальная стоимость</th>
                 </tr>
               </thead>
               <tbody>
@@ -499,8 +419,14 @@ function RouteOptimalDaysTable({ data }) {
                     <td style={{ padding: '12px', borderBottom: '1px solid #ddd' }}>
                       Купить билет не позднее чем за {item.optimalDay} {getDayWord(item.optimalDay)} до вылета
                     </td>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #ddd', textAlign: 'right' }}>
-                      {item.flightCount}
+                    <td style={{ 
+                      padding: '12px', 
+                      borderBottom: '1px solid #ddd', 
+                      textAlign: 'right',
+                      color: '#2e7d32',
+                      fontWeight: 'bold'
+                    }}>
+                      {formatNumber(item.optimalPrice)} ₽
                     </td>
                   </tr>
                 ))}
@@ -547,6 +473,8 @@ function getDayWord(number) {
   ];
 }
 
+
+
 function App() {
   const theme = useTheme();
   const [data, setData] = useState(null);
@@ -556,31 +484,94 @@ function App() {
   const [showFullRating, setShowFullRating] = useState(false);
   const [routeDetails, setRouteDetails] = useState(null);
   const [departmentsData, setDepartmentsData] = useState(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [departmentList, setDepartmentList] = useState([]);
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const menuItems = [
+    { text: 'Рейтинг департаментов', icon: <StarIcon />, id: 'rating' },
+    { text: 'Рекомендации', icon: <LightbulbIcon />, id: 'recommendations' },
+    { text: 'Распределение затрат', icon: <PieChartIcon />, id: 'distribution' },
+    { text: 'Средняя стоимость', icon: <BarChartIcon />, id: 'average' },
+    { text: 'Динамика по неделям', icon: <TimelineIcon />, id: 'weekly' },
+    { text: 'Статистика', icon: <BarChartIcon />, id: 'statistics' }
+  ];
+
+  const drawer = (
+    <Box sx={{ width: 250 }}>
+      <List>
+        {menuItems.map((item) => (
+          <ListItem 
+            button 
+            key={item.id}
+            onClick={() => {
+              const element = document.getElementById(item.id);
+              if (element) {
+                const headerOffset = 84; // Высота хедера
+                const elementPosition = element.getBoundingClientRect().top;
+                const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                
+                window.scrollTo({
+                  top: offsetPosition,
+                  behavior: 'smooth'
+                });
+              }
+            }}
+            sx={{
+              '&:hover': {
+                backgroundColor: 'rgba(43, 78, 152, 0.1)',
+              },
+              '&.Mui-selected': {
+                backgroundColor: 'rgba(43, 78, 152, 0.2)',
+                '&:hover': {
+                  backgroundColor: 'rgba(43, 78, 152, 0.3)',
+                }
+              }
+            }}
+          >
+            <ListItemIcon sx={{ color: '#2B4E98' }}>
+              {item.icon}
+            </ListItemIcon>
+            <ListItemText 
+              primary={item.text} 
+              primaryTypographyProps={{
+                color: '#4B4B4C',
+                fontWeight: 500
+              }}
+            />
+          </ListItem>
+        ))}
+      </List>
+    </Box>
+  );
+
+  const fetchData = async () => {
+    try {
+      console.log('Начинаем загрузку данных...');
+      const response = await fetch('http://localhost:8000/api/data');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new TypeError("Ошибка: сервер вернул не JSON данные!");
+      }
+      const jsonData = await response.json();
+      console.log('Данные успешно загружены:', jsonData);
+      setData(jsonData);
+      setDepartmentList(jsonData.departmentList || []);
+    } catch (error) {
+      console.error('Ошибка при загрузке данных:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        console.log('Начинаем загрузку данных...');
-        const response = await fetch('http://localhost:8000/api/data');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          throw new TypeError("Ошибка: сервер вернул не JSON данные!");
-        }
-        const jsonData = await response.json();
-        console.log('Данные успешно загружены:', jsonData);
-        console.log('routeOptimalDays:', jsonData.routeOptimalDays); // Отладочная информация
-        setData(jsonData);
-      } catch (error) {
-        console.error('Ошибка при загрузке данных:', error);
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
   }, []);
 
@@ -652,7 +643,7 @@ function App() {
       <Box sx={{ my: 4, textAlign: 'center' }}>
         <Typography variant="h6" color="error">Ошибка: {error}</Typography>
         <Typography variant="body1" sx={{ mt: 2 }}>
-          Убедитесь, что сервер запущен и доступен по адресу http://localhost:8000
+          Убедитесь, что сервер запущен и доступен по адресу http://backend:8000
         </Typography>
       </Box>
     </Container>
@@ -1610,7 +1601,6 @@ function App() {
       boxShadow: theme.shadows[8],
     },
     background: alpha(theme.palette.background.paper, 0.9),
-    backdropFilter: 'blur(10px)',
     borderRadius: 2,
   };
 
@@ -1634,22 +1624,102 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ 
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, rgba(43, 78, 152, 0.1) 0%, rgba(96, 91, 162, 0.1) 100%)',
-        py: 4
-      }}>
+      <Box sx={{ display: 'flex' }}>
         <Header 
           selectedDepartment={selectedDepartment}
           onDepartmentChange={handleDepartmentChange}
-          departmentList={data?.departmentList || []}
+          departmentList={departmentList}
+          onDrawerToggle={handleDrawerToggle}
         />
+        
+        
+
+        {/* Постоянное навигационное меню для десктопа */}
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: 'none', sm: 'block' },
+            width: '250px',
+            flexShrink: 0,
+            position: 'fixed',
+            left: 0,
+            top: 64,
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: '250px',
+              background: '#FFFFFF',
+              borderRight: '1px solid rgba(0, 0, 0, 0.12)',
+              position: 'fixed',
+              height: 'calc(100vh - 64px)',
+              top: 64,
+              left: 0,
+              zIndex: theme.zIndex.drawer
+            },
+          }}
+          open
+        >
+          <Box sx={{ 
+            width: '250px',
+            height: '100%',
+            overflow: 'auto'
+          }}>
+            <List>
+              {menuItems.map((item) => (
+                <ListItem 
+                  button 
+                  key={item.id}
+                  onClick={() => {
+                    const element = document.getElementById(item.id);
+                    if (element) {
+                      const headerOffset = 84; // Высота хедера
+                      const elementPosition = element.getBoundingClientRect().top;
+                      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                      
+                      window.scrollTo({
+                        top: offsetPosition,
+                        behavior: 'smooth'
+                      });
+                    }
+                  }}
+                  sx={{
+                    '&:hover': {
+                      backgroundColor: 'rgba(43, 78, 152, 0.1)',
+                    },
+                    '&.Mui-selected': {
+                      backgroundColor: 'rgba(43, 78, 152, 0.2)',
+                      '&:hover': {
+                        backgroundColor: 'rgba(43, 78, 152, 0.3)',
+                      }
+                    }
+                  }}
+                >
+                  <ListItemIcon sx={{ color: '#2B4E98' }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={item.text} 
+                    primaryTypographyProps={{
+                      color: '#4B4B4C',
+                      fontWeight: 500
+                    }}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        </Drawer>
+
         <Container 
           maxWidth="lg" 
           sx={{ 
-            ml: { sm: '250px' },
-            width: { sm: `calc(100% - 250px)` },
-            transition: 'margin 0.2s ease-in-out'
+            width: '100%',
+            transition: 'margin 0.2s ease-in-out',
+            mt: '84px',
+            pb: 6,
+            px: 0,
+            '&.MuiContainer-root': {
+              padding: 0
+            }
           }}
         >
           {loading ? (
@@ -1671,13 +1741,13 @@ function App() {
                 fontWeight: 700,
                 color: theme.palette.primary.main,
                 textShadow: `2px 2px 4px ${alpha(theme.palette.primary.main, 0.2)}`,
-                mb: 4
+                mb: 6 // Увеличиваем отступ после заголовка
               }}
             >
               Аналитика экономии на авиабилетах
             </Typography>
 
-            <Grid container spacing={3}>
+            <Grid container spacing={4}> {/* Увеличиваем отступы между элементами сетки */}
               {/* Рейтинг департаментов и рекомендации в одном ряду */}
               <Grid item xs={12} id="rating">
                 <Grid container spacing={3}>
